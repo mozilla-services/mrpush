@@ -6,11 +6,20 @@ import (
 	"fmt"
 	irc "github.com/fluffle/goirc/client"
 	"log"
-	// jenkins "github.com/yosida95/golang-jenkins"
 	"os"
-	"runtime"
 	"strings"
 )
+
+type JenkinsCreds struct {
+	ApiToken string
+	BaseUrl  string
+	Username string
+}
+
+type IRCMessage struct {
+	Channel string
+	Msg     string
+}
 
 type IRCChannels struct {
 	Key      string
@@ -24,6 +33,7 @@ type IRCConfig struct {
 	Ssl      bool
 	Port     int
 	Channels map[string]IRCChannels
+	Jenkins  JenkinsCreds
 }
 
 func readConfig(configFile string) IRCConfig {
@@ -43,11 +53,10 @@ func readConfig(configFile string) IRCConfig {
 
 func Bot(config IRCConfig) {
 
-	c := irc.NewConfig(config.Nick)
+	c := irc.NewConfig(config.Nick, config.Nick, config.Nick)
 	c.SSL = config.Ssl
-	c.SSLConfig = &tls.Config{ServerName: config.Host, InsecureSkipVerify: false}
 	c.Server = config.Host
-	c.NewNick = func(n string) string { return n + "^" }
+	c.SSLConfig = &tls.Config{ServerName: c.Server}
 
 	bot := irc.Client(c)
 
@@ -56,7 +65,8 @@ func Bot(config IRCConfig) {
 	bot.HandleFunc(irc.CONNECTED,
 		func(conn *irc.Conn, line *irc.Line) {
 			conn.Mode(conn.Me().Nick, "+B")
-			bot.Privmsg("NickServ", fmt.Sprintf("identify %s", config.Password))
+			bot.Privmsgf("NickServ", "identify %s", config.Password)
+			fmt.Println(line.Raw)
 			for key, channel := range config.Channels {
 				conn.Join(key + " " + channel.Key)
 			}
@@ -64,20 +74,8 @@ func Bot(config IRCConfig) {
 
 	bot.HandleFunc(irc.PRIVMSG,
 		func(conn *irc.Conn, line *irc.Line) {
-			// fmt.Println(line.Args[1])
+			fmt.Println(line.Raw)
 			switch {
-			case strings.HasPrefix(line.Args[1], "!build"):
-				build := strings.Split(line.Args[1], " ")
-				if len(build) == 1 {
-					bot.Privmsg(line.Args[0], "usage: !build project gitref")
-					bot.Privmsg(line.Args[0], "available projects:")
-					for key, _ := range config.Channels[line.Args[0]].Projects {
-						bot.Privmsg(line.Args[0], key)
-					}
-				} else if len(build) == 3 {
-					a := config.Channels[line.Args[0]].Projects[build[1]]
-					bot.Privmsg(line.Args[0], a)
-				}
 			case strings.HasPrefix(line.Args[1], "!quit"):
 				quit <- true
 
@@ -91,13 +89,20 @@ func Bot(config IRCConfig) {
 		log.Printf("Connection error: %s\n", err.Error())
 	}
 
+	go jenkinsActions(bot, config.Channels, config.Jenkins)
+
 	<-quit
 
 }
 
+func sendMsg(bot *irc.Conn, c chan IRCMessage) {
+	for item := range c {
+		bot.Privmsg(item.Channel, item.Msg)
+	}
+
+}
+
 func main() {
-	runtime.GOMAXPROCS(2)
 	config := readConfig("config.json")
-	// fmt.Println(config.Channels)
 	Bot(config)
 }
