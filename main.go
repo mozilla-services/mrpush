@@ -62,6 +62,7 @@ func Bot(config IRCConfig) {
 
 	quit := make(chan bool)
 
+	// on CONNECTED identify with NickServ, set mode to bot, connect to channels in config
 	bot.HandleFunc(irc.CONNECTED,
 		func(conn *irc.Conn, line *irc.Line) {
 			conn.Mode(conn.Me().Nick, "+B")
@@ -95,6 +96,7 @@ func Bot(config IRCConfig) {
 
 }
 
+// sends IRC messages within routines
 func sendMsg(bot *irc.Conn, c chan IRCMessage) {
 	for item := range c {
 		bot.Privmsg(item.Channel, item.Msg)

@@ -21,6 +21,8 @@ func jenkinsActions(bot *irc.Conn, channels map[string]IRCChannels, j JenkinsCre
 
 	go sendMsg(bot, c)
 
+	// line.Args[0] contains the channel/sender
+	// line.Args[1] contains the message
 	bot.HandleFunc(irc.PRIVMSG,
 		func(conn *irc.Conn, line *irc.Line) {
 			switch {
