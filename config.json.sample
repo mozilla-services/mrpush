@@ -1,0 +1,28 @@
+{
+    "nick": "mrpush",
+    "password": "password",
+    "host": "irc.example.com",
+    "port": 6697,
+    "ssl": true,
+    "jenkins": {
+        "username": "mrpush",
+        "apitoken": "apitoken",
+        "baseurl": "https://example.com"
+    },
+    "channels": {
+        "#example1": {
+            "key": "example1key",
+            "projects": {
+                "dev.example1.com": "example1-com-dev-BUILD",
+                "stage.example1.com": "example1-com-stage-BUILD",
+            }
+        },
+        "#example2": {
+            "key": "example2key",
+            "projects": {
+                "dev.example2.com": "example2-com-dev-BUILD",
+                "stage.example2.com": "example2-com-stage-BUILD",
+            }
+        }
+    }
+}
