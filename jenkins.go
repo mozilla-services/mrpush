@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	irc "github.com/fluffle/goirc/client"
 	"github.com/yosida95/golang-jenkins"
 	"log"
 	"net/url"
 	"strings"
+	"time"
 )
 
 func jenkinsActions(bot *irc.Conn, channels map[string]IRCChannels, j JenkinsCreds) {
@@ -40,6 +42,9 @@ func jenkinsActions(bot *irc.Conn, channels map[string]IRCChannels, j JenkinsCre
 					gitRef := build[2]
 
 					go buildJob(jenkins, jobName, gitRef, line.Args[0], c)
+					time.Sleep(10 * time.Second)
+					go statusJob(jenkins, jobName, line.Args[0], c)
+
 				}
 			case strings.HasPrefix(line.Args[1], "!status"):
 				status := strings.Split(line.Args[1], " ")
@@ -64,7 +69,7 @@ func buildJob(jenkins *gojenkins.Jenkins, jobName string, gitRef string, ircchan
 
 	} else {
 		jenkins.Build(job, params)
-		c <- IRCMessage{ircchannel, "Submitted build to jenkins"}
+		c <- IRCMessage{ircchannel, fmt.Sprintf("Building %s %s", jobName, gitRef)}
 	}
 }
 
@@ -77,7 +82,31 @@ func statusJob(jenkins *gojenkins.Jenkins, jobName string, ircchannel string, c 
 		c <- IRCMessage{ircchannel, "Unable to get status"}
 	} else {
 		log.Println(job)
-		log.Println(job.HealthReport[0].Description)
-		c <- IRCMessage{ircchannel, job.HealthReport[0].Description}
+		jobState := pollJobState(jenkins, job)
+		// log.Println(job.Color)
+		// log.Println(getlast.Result)
+
+		if jobState == true {
+			c <- IRCMessage{ircchannel, fmt.Sprintf("Build %s succeeded", jobName)}
+		} else {
+			c <- IRCMessage{ircchannel, fmt.Sprintf("Build %s failed", jobName)}
+		}
 	}
+}
+
+func pollJobState(jenkins *gojenkins.Jenkins, job gojenkins.Job) bool {
+	for {
+		last, err := jenkins.GetLastBuild(job)
+		log.Println(last)
+		if err != nil {
+			log.Printf("Unable to get job information: %s\n", err.Error())
+		} else if last.Result == "SUCCESS" {
+			return true
+
+		} else if last.Result == "FAILURE" {
+			return false
+		}
+		time.Sleep(10 * time.Second)
+	}
+	return false
 }
