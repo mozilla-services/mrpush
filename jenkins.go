@@ -42,15 +42,16 @@ func jenkinsActions(bot *irc.Conn, channels map[string]IRCChannels, j JenkinsCre
 					gitRef := build[2]
 
 					go buildJob(jenkins, jobName, gitRef, line.Args[0], c)
+					// We need to sleep for a little bit before we poll
 					time.Sleep(10 * time.Second)
-					go statusJob(jenkins, jobName, line.Args[0], c)
+					go statusBuild(jenkins, jobName, true, line.Args[0], c)
 
 				}
 			case strings.HasPrefix(line.Args[1], "!status"):
 				status := strings.Split(line.Args[1], " ")
 				if len(status) == 2 {
 					jobName := channels[line.Args[0]].Projects[status[1]]
-					go statusJob(jenkins, jobName, line.Args[0], c)
+					go statusBuild(jenkins, jobName, false, line.Args[0], c)
 				}
 			}
 		})
@@ -73,40 +74,56 @@ func buildJob(jenkins *gojenkins.Jenkins, jobName string, gitRef string, ircchan
 	}
 }
 
-func statusJob(jenkins *gojenkins.Jenkins, jobName string, ircchannel string, c chan IRCMessage) {
+func statusBuild(jenkins *gojenkins.Jenkins, jobName string, poll bool, ircchannel string, c chan IRCMessage) {
 
 	job, err := jenkins.GetJob(jobName)
+	buildState := ""
 
 	if err != nil {
 		log.Printf("Unable to get job information: %s\n", err.Error())
 		c <- IRCMessage{ircchannel, "Unable to get status"}
 	} else {
-		log.Println(job)
-		jobState := pollJobState(jenkins, job)
-		// log.Println(job.Color)
-		// log.Println(getlast.Result)
-
-		if jobState == true {
-			c <- IRCMessage{ircchannel, fmt.Sprintf("Build %s succeeded", jobName)}
+		if poll {
+			buildState = pollBuildState(jenkins, job)
 		} else {
-			c <- IRCMessage{ircchannel, fmt.Sprintf("Build %s failed", jobName)}
+			buildState = getBuildState(jenkins, job)
+		}
+
+		switch {
+		case buildState == "BUILDING":
+			c <- IRCMessage{ircchannel, fmt.Sprintf("Job %s is building", jobName)}
+		case buildState == "SUCCESS":
+			c <- IRCMessage{ircchannel, fmt.Sprintf("Job %s succeeded", jobName)}
+		case buildState == "FAILURE":
+			c <- IRCMessage{ircchannel, fmt.Sprintf("Job %s failed", jobName)}
 		}
 	}
 }
 
-func pollJobState(jenkins *gojenkins.Jenkins, job gojenkins.Job) bool {
-	for {
-		last, err := jenkins.GetLastBuild(job)
-		log.Println(last)
-		if err != nil {
-			log.Printf("Unable to get job information: %s\n", err.Error())
-		} else if last.Result == "SUCCESS" {
-			return true
+// result is SUCCESS, FAILURE, or "" when building
+func getBuildState(jenkins *gojenkins.Jenkins, job gojenkins.Job) string {
 
-		} else if last.Result == "FAILURE" {
-			return false
+	last, err := jenkins.GetLastBuild(job)
+
+	if err != nil {
+		log.Printf("Unable to get build information: %s\n", err.Error())
+	} else if last.Result == "" {
+		return "BUILDING"
+
+	}
+	return last.Result
+}
+
+// poll getBuildState every 10 seconds to watch for state change
+func pollBuildState(jenkins *gojenkins.Jenkins, job gojenkins.Job) string {
+
+	for {
+		last := getBuildState(jenkins, job)
+
+		if last != "BUILDING" {
+			return last
 		}
 		time.Sleep(10 * time.Second)
 	}
-	return false
+	return ""
 }
