@@ -79,7 +79,7 @@ func Bot(config IRCConfig) {
 
 	bot.HandleFunc(irc.PRIVMSG,
 		func(conn *irc.Conn, line *irc.Line) {
-			fmt.Println(line.Raw)
+			log.Println(line.Raw)
 			switch {
 			case strings.HasPrefix(line.Args[1], "!quit"):
 				quit <- true
