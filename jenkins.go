@@ -40,12 +40,7 @@ func jenkinsActions(bot *irc.Conn, channels map[string]IRCChannels, j JenkinsCre
 				} else if len(build) == 3 {
 					jobName := channels[line.Args[0]].Projects[build[1]]
 					gitRef := build[2]
-
 					go buildJob(jenkins, jobName, gitRef, line.Args[0], c)
-					// We need to sleep for a little bit before we poll
-					time.Sleep(10 * time.Second)
-					go statusBuild(jenkins, jobName, true, line.Args[0], c)
-
 				}
 			case strings.HasPrefix(line.Args[1], "!status"):
 				status := strings.Split(line.Args[1], " ")
@@ -71,6 +66,10 @@ func buildJob(jenkins *gojenkins.Jenkins, jobName string, gitRef string, ircchan
 	} else {
 		jenkins.Build(job, params)
 		c <- IRCMessage{ircchannel, fmt.Sprintf("Building %s %s", jobName, gitRef)}
+
+		// wait 10 seconds before polling build status
+		time.Sleep(10 * time.Second)
+		statusBuild(jenkins, jobName, true, ircchannel, c)
 	}
 }
 
