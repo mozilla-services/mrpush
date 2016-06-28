@@ -90,12 +90,12 @@ func statusBuild(jenkins *gojenkins.Jenkins, jobName string, poll bool, ircchann
 		}
 
 		switch {
-		case buildState == "BUILDING":
-			c <- IRCMessage{ircchannel, fmt.Sprintf("Job %s is building", jobName)}
 		case buildState == "SUCCESS":
 			c <- IRCMessage{ircchannel, fmt.Sprintf("Job %s succeeded", jobName)}
 		case buildState == "FAILURE":
 			c <- IRCMessage{ircchannel, fmt.Sprintf("Job %s failed", jobName)}
+		case buildState == "BUILDING":
+			c <- IRCMessage{ircchannel, fmt.Sprintf("Job %s is building", jobName)}
 		}
 	}
 }
