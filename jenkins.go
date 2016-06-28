@@ -36,7 +36,7 @@ func jenkinsActions(bot *irc.Conn, channels map[string]IRCChannels, j JenkinsCre
 			case strings.HasPrefix(line.Args[1], "!build"):
 				build := strings.Split(line.Args[1], " ")
 				if len(build) == 1 {
-					c <- IRCMessage{line.Args[0], "usage: !build project gitref"}
+					c <- IRCMessage{line.Args[0], "usage: !build job gitref"}
 				} else if len(build) == 3 {
 					jobName := channels[line.Args[0]].Projects[build[1]]
 					gitRef := build[2]
