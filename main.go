@@ -68,8 +68,12 @@ func Bot(config IRCConfig) {
 			conn.Mode(conn.Me().Nick, "+B")
 			bot.Privmsgf("NickServ", "identify %s", config.Password)
 			fmt.Println(line.Raw)
-			for key, channel := range config.Channels {
-				conn.Join(key + " " + channel.Key)
+			for channel, cinfo := range config.Channels {
+				if cinfo.Key != "" {
+					conn.Join(channel + " " + cinfo.Key)
+				} else {
+					conn.Join(channel)
+				}
 			}
 		})
 
