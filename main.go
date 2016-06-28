@@ -104,6 +104,7 @@ func Bot(config IRCConfig) {
 func sendMsg(bot *irc.Conn, c chan IRCMessage) {
 	for item := range c {
 		bot.Privmsg(item.Channel, item.Msg)
+		log.Println(item.Channel, item.Msg)
 	}
 
 }
