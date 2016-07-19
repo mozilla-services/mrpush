@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"encoding/json"
+	"flag"
 	"fmt"
 	irc "github.com/fluffle/goirc/client"
 	"log"
@@ -110,6 +111,9 @@ func sendMsg(bot *irc.Conn, c chan IRCMessage) {
 }
 
 func main() {
-	config := readConfig("config.json")
+	configFile := flag.String("config", "config.json", "path to config file")
+	flag.Parse()
+
+	config := readConfig(*configFile)
 	Bot(config)
 }
